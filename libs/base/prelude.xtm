@@ -9,19 +9,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; currying
 
-(bind-func curry:[[!r,!a]*,[!r,!a]*]* -> (lambda (r f) (t:closure-size? f 1))
+(bind-func curry:[[!r,!a]*,[!r,!a]*]*
   (lambda (f) f))
 
-(bind-func curry:[[[!r,!b]*,!a]*,[!r,!a,!b]*]* -> (lambda (r f) (t:closure-size? f 2))
+(bind-func curry:[[[!r,!b]*,!a]*,[!r,!a,!b]*]*
   (lambda (f) (lambda (a) (lambda (b) (f a b)))))
 
-(bind-func curry:[[[[!r,!c]*,!b]*,!a]*,[!r,!a,!b,!c]*]* -> (lambda (r f) (t:closure-size? f 3))
+(bind-func curry:[[[[!r,!c]*,!b]*,!a]*,[!r,!a,!b,!c]*]*
   (lambda (f) (lambda (a) (lambda (b) (lambda (c) (f a b c))))))
 
-(bind-func curry:[[[[[!r,!d]*,!c]*,!b]*,!a]*,[!r,!a,!b,!c,!d]*]* -> (lambda (r f) (t:closure-size? f 4))
+(bind-func curry:[[[[[!r,!d]*,!c]*,!b]*,!a]*,[!r,!a,!b,!c,!d]*]*
   (lambda (f) (lambda (a) (lambda (b) (lambda (c) (lambda (d) (f a b c d)))))))
 
-(bind-func curry:[[[[[[!r,!e]*,!d]*,!c]*,!b]*,!a]*,[!r,!a,!b,!c,!d,!e]*]* -> (lambda (r f) (t:closure-size? f 5))
+(bind-func curry:[[[[[[!r,!e]*,!d]*,!c]*,!b]*,!a]*,[!r,!a,!b,!c,!d,!e]*]*
   (lambda (f) (lambda (a) (lambda (b) (lambda (c) (lambda (d) (lambda (e) (f a b c d e))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
