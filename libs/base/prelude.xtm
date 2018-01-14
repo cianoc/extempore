@@ -6,6 +6,8 @@
 ;; prelude loads algebraic data types
 (sys:load "libs/base/adt.xtm")
 
+(bind-alias Bool i1)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; currying
 
@@ -23,6 +25,24 @@
 
 (bind-func curry:[[[[[[!r,!e]*,!d]*,!c]*,!b]*,!a]*,[!r,!a,!b,!c,!d,!e]*]*
   (lambda (f) (lambda (a) (lambda (b) (lambda (c) (lambda (d) (lambda (e) (f a b c d e))))))))
+
+(bind-func flip:[[!r,!b,!a]*,[!r,!a,!b]*]*
+  (lambda (fn)
+    (lambda (b a) (fn a b))))
+
+(bind-func compose:[[!c,!a]*,[!a,!b]*,[!b,!c]*]*
+  (lambda (f g) (lambda (a) (g (f a)))))
+
+(bind-func id:[!a,!a]*
+  (lambda (a) a))
+
+(bind-func const:[[!a,!b]*,!a]*
+  (lambda (a) (lambda (b) c)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Loops etc
+
+;; Until
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; List 
@@ -68,7 +88,7 @@
     ;; alternate implementation using join and fmap
     ;; (join (fmap f M))))
     (Cons$ M (x xs) (append (f x) (flatmap xs f)) (Nil))))
-    
+
 ;; also known as 'pure' or 'return'
 (bind-func unit:[List{!a}*,!a]*
   (lambda (x)
