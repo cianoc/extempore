@@ -42,10 +42,176 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Loops etc
 
-;; Until
+;; TODO Optimization. Only use 'begin' if we're not inside one of the following case cond do
+;; lambda let if. Probably should be a generalized function as this seems
+;; useful.
+(bind-macro
+  "
+Always run the expression at least once before testing the predicate.
+@param - The expression inside the until loop
+@param - the predicate
+
+@example (until (= x 4)(println \"hello\"))
+"
+  (until pred exp)
+  `(begin (,exp (while ,pred ,exp))))
+
+;; (macro-expand '(xtmacro_until (= x 4) (println "hello")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; maybe 
+;;
+
+(bind-data Option{!a}
+           (Some !a)
+           (None))
+
+(bind-func toString:[String*,Option{!a}*]*
+  (lambda (F)
+    (Some$ F (x)
+              (toString x)
+              '_')))
+
+(bind-func print:[void,Option*]*
+  (lambda (F)
+    (printout (toString F))))
+
+;; also known as map, lift
+(bind-func fmap:[Option{!b}*,[!b,!a]*,Option{!a}*]*
+  (lambda (f F)
+    (Some$ F (x) (Some (f x)) (None))))
+
+(bind-func join:[Option{!a}*,Option{Option{!a}*}*]*
+  (lambda (M)
+    (Some$ M (x) x (None))))
+
+;; it's more convenient to have the function in last arg position
+(bind-func flatmap:[Option{!b}*,Option{!a}*,[Option{!b}*,!a]*]*
+  (lambda (M f)
+    ;; (join (fmap f M)))) ;; alternate using join & fmap
+    (Some$ M (x) (f x) (None))))    
+
+;; also known as return or pure
+(bind-func unit:[Option{!a}*,!a]*
+  (lambda (x)
+    (Some x)))
+
+;; also known as >>=
+(bind-func bind:[Option{!b}*,Option{!a}*,[Option{!b}*,!a]*]*
+  (lambda (mx f)
+    (Some$ mx (x)
+           (Some (f x))
+           (None))))
+
+;; also known as Kleisli arrow >=>
+(bind-func mcompose:[Option{!c}*,!a]*,[Option{!b}*,!a]*,[Option{!c}*,!b]*
+  (lambda (f g)
+    (lambda (x)
+      (bind (f x) g))))
+
+;; also known as <*> or ap
+(bind-func apply:[Option{!b}*,Option{[!b,!a]*}*,Option{!a}*]*
+  (lambda (F1 F2)
+    (Some$ F1 (f)
+              (Some$ F2 (x)
+                        (Some (f x))
+                        (None))
+              (None))))
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; List 
+;; Array List
+;; Also known as Vector, Dynamic Array, etc
+
+;; pointer to the base of the array, the length, the allocated size
+;; ArrayLists are allocated space on the heap.
+;; but their life cycle is aligned with the zone they are attached to.
+(bind-type ArrayL{!a} <!a,i64,i64,mzone*> (#f)
+  "
+Also known as Vector, Dynamic Array, etc.
+This is an array that grows (and shrinks) as necessary.
+
+An ArrayList allocated on a zone will be freed when the current zone is destroyed. An ArrayList allocated on the heap will have to be manually freed using 'delete'.
+
+Array lists can't be allocated on the stack currently.")
+
+(bind-func ArrayL:[ArrayL{!a}*]*
+  "
+Create an ArrayList.
+@param initial capacity for the ArrayList.
+"
+  (lambda (cap)
+    (let ((data:!a (halloc cap))
+          (zone (peek_zone))
+          (arr (ArrayL_z data 0 cap )))
+      (zone_cleanup (ArrayL_zhook arr))
+      arr)))
+
+(bind-func ArrayL:[ArrayL{!a}*]*
+  "Creates an ArrayList with default capacity of 0"
+  (lambda () (ArrayL 10)))
+
+;; This is attached to the zone that this is created in and allows us
+;; to cleanup the buffer used for Array storage.
+(bind-func ArrayL_zhook:[void,ArrayL{!a}*]*
+  (lambda (arr)
+    (if (eq (tref arr 3) peek_zone)
+        (free (tref arr 0)) void)))
+
+(bind-func test
+  (lambda () (println (let ((x:i8* (halloc 4))
+                            (y:i64 (convert (pref-ptr x 0)))
+                            (z:i64 (convert (pref-ptr x 1))))
+                        (- z y)))))
+
+($ (test))
+
+(bind-func ArrayL_resize:[void,ArrayL{!a}*,i64]*
+  (lambda (arr ncap)
+    (let ((nloc (halloc ncap)))
+      (memcpy (cast nloc i8*) (cast (tref arr 0) i8*) 
+
+;; Operations should be:
+;; add append insert pop (last element) set/get remove copy deep_copy
+;; reverse sort
+;; fill should also be supported.
+;; NOTE: Sort should Timsort algorithm
+
+(bind-func get:[Option{!}*,ArrayL{!a}*,i64]*
+  "
+Safe get. If you give it an index outside the array it will return None.
+@param the array
+@param index into the array (first element is 0)
+"
+  (lambda (arr idx)
+    (let ((len) (tref arr 1))
+      (if ((and) (> idx 0) (< idx (tref arr 1)))
+          (Some (unsafe-get arr idx))
+          (None)))))
+
+;; might do this as a macro for extra speed
+(bind-func unsafe-get:[Option{!a}*,Array{!a}*,i64]*
+  (lambda (arr idx)
+    (pref (tref arr 0) idx)))
+
+;; foreach should be supported.
+;; also slices, which would probably be something a little bit more generic. A function that
+;; sits over a non-specific data structure.
+;;
+;; Resize factor for the ArrayList is 1.5
+; If the size falls below 30% of capacity also resize it.
+;; reserve - make sure the capacity is at least x?
+;;
+;;Need a way to copy this from one zone to another
+
+(bind-func length:[i64,ArrayList{!a}*]*
+  (lambda (arr)
+    (tref arr 1)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; List
 
 (bind-data List{!a}
            (Nil)
@@ -69,6 +235,7 @@
   (lambda (lst)
     (toString_help lst (Str "["))))
 
+;; Inefficient. Need a tail recursion assistant.
 (bind-func append:[List{!a}*,List{!a}*,List{!a}*]*
   (lambda (as bs)
     (Cons$ as (x xs) (Cons x (append xs bs)) bs)))
@@ -218,7 +385,31 @@
                         (None))
               (None))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Delimited Continuations
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(bind-type Cont{!r,!a} <[!r,[!r,!a]*]*>)
 
+(bind-func cont_fn:[[!r,[!r,!a]*]*,Cont{!r,!a}*]*
+  (lambda (cont) (tref cont 0)))
 
+(bind-func runCont:[!r,Cont{!r,!a}*,!a]*
+  (lambda (cont x) ((contFn cont) x)))
+
+;; pass value `x` through the continuation
+;; (bind-func just:[!r,[!r,!a]*]*
+(bind-func just:[Cont{!r,!a}*,!a]*
+  (lambda (x)
+    (Cont (lambda (k) (k x)))))
+
+(bind-func bind:[Cont{!r,!b}*,Cont{!r,!a}*,[Cont{!r,!b}*,!a]*]*
+  (lambda (c f)
+    (let ((cf (cont_fn c)))
+      (Cont
+       (lambda (k)
+         (runCont (f (cf k)) k))))))
+
+(bind-func abrupt:[Cont{!r,!a}*,!a]*
+  (lambda (x) (Cont (lambda (k) x))))
 
